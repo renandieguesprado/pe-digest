@@ -49,8 +49,8 @@ RSS_FEEDS = [
     ("Brasil",  "https://valor.globo.com/rss/empresas/", False),
     ("Brasil",  "https://www.infomoney.com.br/mercados/feed/", False),
     ("Brasil",  "https://exame.com/feed/", False),
-    ("Global",  "https://www.globenewswire.com/RssFeed/subjectcode/27-Mergers+and+Acquisitions", True),
-    ("Global",  "https://www.prnewswire.com/rss/news-releases-list.rss?subjectCode=MA", True),
+    ("Global",  "https://www.globenewswire.com/RssFeed/subjectcode/27-Mergers+and+Acquisitions", False),
+    ("Global",  "https://www.prnewswire.com/rss/news-releases-list.rss?subjectCode=MA", False),
     ("Global",  "https://www.altassets.net/feed", True),
     ("Europa",  "https://www.altassets.net/category/news/international-pe-news/europe/feed", True),
     ("Global",  "https://feeds.reuters.com/reuters/businessNews", False),
@@ -86,10 +86,18 @@ GEO_KEYWORDS = {
 # Feeds cujos artigos são sempre PE/M&A — pula filtro de keyword
 DEDICATED_FEEDS = {
     "fusoesaquisicoes.com",
-    "globenewswire.com",
-    "prnewswire.com",
     "altassets.net",
 }
+
+# Palavras que indicam artigo irrelevante — descarta mesmo de feeds dedicados
+NEGATIVE_KEYWORDS = [
+    "olympic", "olimpíada", "olimpiada", "marathon", "maratona",
+    "mwc barcelona", "mwc 2026", "football", "soccer", "futebol",
+    "basketball", "tennis", "nba", "nfl", "fifa", "champions league",
+    "recipe", "receita", "weather", "clima", "horoscope", "horóscopo",
+    "celebrity", "celebridade", "reality show", "big brother",
+    "koşu saatl",  # spam em turco do prnewswire
+]
 
 # ---------------------------------------------------------------------------
 # Filtro de Data
@@ -127,13 +135,17 @@ def _is_dedicated_feed(feed_url: str) -> bool:
 
 def is_relevant(title: str, summary: str, feed_url: str) -> bool:
     """
-    Dois tiers:
-    - Tier 1: feed dedicado → sempre relevante
+    Três tiers:
+    - Filtro negativo: descarta artigos claramente irrelevantes
+    - Tier 1: feed dedicado → relevante (após filtro negativo)
     - Tier 2: verifica keywords de transação ou asset class no título/summary
     """
+    text = f"{title} {summary}"
+    # Filtro negativo — descarta mesmo de feeds dedicados
+    if _contains_any(text, NEGATIVE_KEYWORDS):
+        return False
     if _is_dedicated_feed(feed_url):
         return True
-    text = f"{title} {summary}"
     return _contains_any(text, TRANSACTION_KEYWORDS) or _contains_any(text, ASSET_CLASS_KEYWORDS)
 
 
