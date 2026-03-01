@@ -390,23 +390,29 @@ ARTIGOS:
 # ---------------------------------------------------------------------------
 
 def _escape_mdv2(text: str) -> str:
-    """Escapa caracteres especiais do MarkdownV2 (exceto já formatados)."""
-    # Caracteres que precisam de escape no MarkdownV2
-    special = r"_*[]()~`>#+-=|{}.!"
-    result = []
-    i = 0
-    while i < len(text):
-        # Preserva formatação existente: *bold*, _italic_
-        if text[i] in ("*", "_") and i + 1 < len(text):
-            result.append(text[i])
-            i += 1
-        elif text[i] in special:
-            result.append("\\" + text[i])
-            i += 1
+    """
+    Escapa caracteres especiais do MarkdownV2, preservando *bold* e _italic_.
+    Abordagem: escapa tudo, depois restaura marcadores de formatação.
+    """
+    # Caracteres reservados no MarkdownV2
+    special = r'\_*[]()~`>#+-=|{}.!'
+
+    # Passo 1: escapa TUDO
+    escaped = []
+    for ch in text:
+        if ch in special:
+            escaped.append('\\' + ch)
         else:
-            result.append(text[i])
-            i += 1
-    return "".join(result)
+            escaped.append(ch)
+    result = ''.join(escaped)
+
+    # Passo 2: restaura *bold* e _italic_ (remove escape dos marcadores)
+    # \*texto\* → *texto*
+    result = re.sub(r'\\\*(.+?)\\\*', r'*\1*', result)
+    # \_texto\_ → _texto_
+    result = re.sub(r'\\\_(.+?)\\\_', r'_\1_', result)
+
+    return result
 
 
 def _split_message(text: str, chunk_size: int = 4000) -> list[str]:
@@ -453,10 +459,11 @@ def send_telegram(text: str) -> bool:
     for i, chunk in enumerate(chunks, 1):
         log.info("Enviando chunk %d/%d (%d chars)...", i, len(chunks), len(chunk))
 
-        # Tentativa 1: MarkdownV2
+        # Tentativa 1: MarkdownV2 (com escape de caracteres especiais)
+        escaped_chunk = _escape_mdv2(chunk)
         payload = {
             "chat_id": chat_id,
-            "text": chunk,
+            "text": escaped_chunk,
             "parse_mode": "MarkdownV2",
             "disable_web_page_preview": True,
         }
