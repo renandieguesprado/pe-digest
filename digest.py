@@ -255,12 +255,12 @@ def fetch_articles() -> dict[str, list[dict]]:
             # Filtro de data
             pub_time = parse_pub_time(entry)
             if not is_fresh(pub_time):
-                log.info("  [-] Descartado (stale): %s | %s", pub_time, title[:60])
+                log.debug("  [-] Descartado (stale): %s | %s", pub_time, title[:60])
                 continue
 
             # Filtro de relevância
             if not is_relevant(title, summary, url):
-                log.info("  [-] Descartado (irrelevante): %s", title[:60])
+                log.debug("  [-] Descartado (irrelevante): %s", title[:60])
                 continue
 
             seen_titles.add(title_key)
