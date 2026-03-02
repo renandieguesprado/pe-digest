@@ -36,24 +36,34 @@ log = logging.getLogger(__name__)
 # Feeds com parâmetro (region, url, is_dedicated)
 # is_dedicated=True → bypass de filtro de keyword (todo artigo já é PE/M&A)
 RSS_FEEDS = [
-    # --- Grupo A: Google News RSS (fonte primária, sempre atual) ---
-    ("Brasil",  "https://news.google.com/rss/search?q=private+equity+brasil+fus%C3%B5es+aquisi%C3%A7%C3%B5es&hl=pt-BR&gl=BR&ceid=BR:pt", False),
-    ("Brasil",  "https://news.google.com/rss/search?q=M%26A+acquisitions+brazil+deal&hl=pt-BR&gl=BR&ceid=BR:pt", False),
-    ("Latam",   "https://news.google.com/rss/search?q=private+equity+latin+america+latam+deal&hl=en-US&gl=US&ceid=US:en", False),
-    ("EUA",     "https://news.google.com/rss/search?q=merger+acquisition+united+states+buyout&hl=en-US&gl=US&ceid=US:en", False),
-    ("Europa",  "https://news.google.com/rss/search?q=private+equity+europe+deal+acquisition&hl=en-GB&gl=GB&ceid=GB:en", False),
+    # --- Grupo A: Google News RSS (fonte primária) ---
+    ("Brasil",  "https://news.google.com/rss/search?q=%22private+equity%22+brasil&hl=pt-BR&gl=BR&ceid=BR:pt", False),
+    ("Brasil",  "https://news.google.com/rss/search?q=fus%C3%B5es+aquisi%C3%A7%C3%B5es+brasil&hl=pt-BR&gl=BR&ceid=BR:pt", False),
+    ("Brasil",  "https://news.google.com/rss/search?q=M%26A+brazil+deal+acquisition&hl=en-US&gl=US&ceid=US:en", False),
+    ("Latam",   "https://news.google.com/rss/search?q=%22private+equity%22+%22latin+america%22+deal&hl=en-US&gl=US&ceid=US:en", False),
+    ("EUA",     "https://news.google.com/rss/search?q=%22private+equity%22+buyout+deal&hl=en-US&gl=US&ceid=US:en", False),
+    ("EUA",     "https://news.google.com/rss/search?q=merger+acquisition+%22billion%22&hl=en-US&gl=US&ceid=US:en", False),
+    ("Europa",  "https://news.google.com/rss/search?q=%22private+equity%22+europe+deal+acquisition&hl=en-GB&gl=GB&ceid=GB:en", False),
 
-    # --- Grupo B: RSS Especializados ---
+    # --- Grupo B: RSS Especializados PE/M&A ---
     ("Brasil",  "https://fusoesaquisicoes.com/feed/", True),
+    ("Global",  "https://www.altassets.net/feed", True),
+    ("Europa",  "https://www.altassets.net/category/news/international-pe-news/europe/feed", True),
+    ("Global",  "https://www.pehub.com/feed/", True),
+    ("Global",  "https://www.privateequityinternational.com/feed/", True),
+    ("Global",  "https://pitchbook.com/news/feed", True),
+    ("Global",  "https://www.buyoutsinsider.com/feed/", True),
+    ("EUA",     "https://news.google.com/rss/search?q=site:wsj.com+%22private+equity%22+OR+%22merger%22+OR+%22acquisition%22&hl=en-US&gl=US&ceid=US:en", False),
+
+    # --- Grupo C: Mídia financeira generalista (com filtro de keywords) ---
     ("Brasil",  "https://valor.globo.com/rss/financas/", False),
     ("Brasil",  "https://valor.globo.com/rss/empresas/", False),
     ("Brasil",  "https://www.infomoney.com.br/mercados/feed/", False),
     ("Brasil",  "https://exame.com/feed/", False),
     ("Global",  "https://www.globenewswire.com/RssFeed/subjectcode/27-Mergers+and+Acquisitions", False),
     ("Global",  "https://www.prnewswire.com/rss/news-releases-list.rss?subjectCode=MA", False),
-    ("Global",  "https://www.altassets.net/feed", True),
-    ("Europa",  "https://www.altassets.net/category/news/international-pe-news/europe/feed", True),
-    ("Global",  "https://feeds.reuters.com/reuters/businessNews", False),
+    ("Global",  "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10001147", False),
+    ("Global",  "https://www.bloomberg.com/feed/podcast/bloomberg-deals.xml", False),
 ]
 
 TRANSACTION_KEYWORDS = [
@@ -87,6 +97,10 @@ GEO_KEYWORDS = {
 DEDICATED_FEEDS = {
     "fusoesaquisicoes.com",
     "altassets.net",
+    "pehub.com",
+    "privateequityinternational.com",
+    "pitchbook.com",
+    "buyoutsinsider.com",
 }
 
 # Palavras que indicam artigo irrelevante — descarta mesmo de feeds dedicados
@@ -104,19 +118,16 @@ NEGATIVE_KEYWORDS = [
 # ---------------------------------------------------------------------------
 
 def get_cutoff() -> datetime:
-    """Janela de 48h (72h nas segundas para cobrir o fim de semana)."""
+    """Janela de 7 dias (artigos mais antigos são irrelevantes para digest diário)."""
     now = datetime.now(timezone.utc)
-    hours = 72 if now.weekday() == 0 else 48
-    return now - timedelta(hours=hours)
+    return now - timedelta(days=7)
 
 
 def is_fresh(pub_time: datetime) -> bool:
     """Retorna True se o artigo está dentro da janela de frescor."""
     if pub_time is None:
-        return False
-    if pub_time.year < 2026:
-        log.debug("Artigo descartado — ano anterior: %s", pub_time.year)
-        return False
+        # Sem data → aceita (Google News nem sempre fornece data parseável)
+        return True
     return pub_time >= get_cutoff()
 
 
