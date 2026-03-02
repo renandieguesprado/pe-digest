@@ -63,8 +63,10 @@ RSS_FEEDS = [
     ("Global",  "https://www.globenewswire.com/RssFeed/subjectcode/27-Mergers+and+Acquisitions", False),
     ("Global",  "https://www.prnewswire.com/rss/news-releases-list.rss?subjectCode=MA", False),
     ("Global",  "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10001147", False),
-    ("Global",  "https://www.bloomberg.com/feed/podcast/bloomberg-deals.xml", False),
 ]
+
+# Máximo de artigos por região para enviar ao LLM (evita estourar limite de tokens)
+MAX_ARTICLES_PER_REGION = {"Brasil": 8, "Latam": 5, "EUA": 8, "Europa": 5, "Global": 4}
 
 TRANSACTION_KEYWORDS = [
     "private equity", "pe fund", "buyout", "leveraged buyout", "lbo",
@@ -308,6 +310,8 @@ def _format_articles_for_prompt(articles_by_region: dict[str, list[dict]]) -> st
         arts = articles_by_region.get(region, [])
         if not arts:
             continue
+        max_arts = MAX_ARTICLES_PER_REGION.get(region, 5)
+        arts = arts[:max_arts]
         lines.append(f"=== {region.upper()} ({len(arts)} artigos) ===")
         for a in arts:
             pub_str = a["pub_time"].strftime("%d/%m %H:%M UTC") if a["pub_time"] else "?"
